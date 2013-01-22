@@ -6,12 +6,14 @@ from concurrent.futures import ProcessPoolExecutor
 VERBOSE = False
 verbose_output = SimpleQueue()
 
+
 def _log(msg):
     verbose_output.put(msg)
     print msg
 
 signals = SimpleQueue()  # Queue of signals for the manager
-queues = []  #
+queues = []
+sentinel = "<QueueSentinel>"
 
 
 def _init_queues(n):
@@ -32,10 +34,12 @@ def _spout(f, i, j):
     if VERBOSE:
         _log("SPOUT %s.%s: START" % (i, j))
     signals.put(("START", i))
+
     def add(n):
         if VERBOSE:
             _log("SPOUT %s.%s: SPAWN %s" % (i, j, n))
         queues[0].put(n)
+
     f(add)
     if VERBOSE:
         _log("SPOUT %s.%s: END" % (i, j))
@@ -51,12 +55,12 @@ def _bolt(f, i, j):
     if VERBOSE:
         _log("BOLT %s.%s: START" % (i, j))
     signals.put(("START", i))
-    for n in iter(queues[i].get, 'STOP'):
+    for n in iter(queues[i].get, sentinel):
         if VERBOSE:
             _log("BOLT %s.%s: PROCESS %s" % (i, j, n))
         r = f(n)
         queues[i + 1].put(r)
-    queues[i].put("STOP")  # repeat Sentinel for sister processes
+    queues[i].put(sentinel)  # repeat Sentinel for sister processes
     if VERBOSE:
         _log("BOLT %s.%s: END" % (i, j))
     signals.put(("STOP", i))
@@ -70,11 +74,11 @@ def _vent(f, i, j):
     if VERBOSE:
         _log("VENT %s.%s: START" % (i, j))
     signals.put(("START", i))
-    for n in iter(queues[i].get, 'STOP'):
+    for n in iter(queues[i].get, sentinel):
         if VERBOSE:
             _log("VENT %s.%s: PROCESS %s" % (i, j, n))
         f(n)
-    queues[i].put("STOP")  # repeat Sentinel for sister processes
+    queues[i].put(sentinel)  # repeat Sentinel for sister processes
     if VERBOSE:
         _log("VENT %s.%s: END" % (i, j))
     signals.put(("STOP", i))
@@ -82,11 +86,11 @@ def _vent(f, i, j):
 
 def _manager(jobs):
     """
-    Manages the
+    Manages the queues.
     """
     if VERBOSE:
         _log("MANAGER: START")
-    for signal, i in iter(signals.get, 'STOP'):
+    for signal, i in iter(signals.get, sentinel):
         if VERBOSE:
             _log("MANAGER: PROCESS %s %s" % (signal, i))
         if signal == "START":
@@ -96,7 +100,7 @@ def _manager(jobs):
             if jobs[i + 1] == 0 and i + 1 < len(queues):
                 if VERBOSE:
                     _log("MANAGER: END QUEUE %s" % (i + 1))
-                queues[i + 1].put("STOP")
+                queues[i + 1].put(sentinel)
         else:
             ValueError("Got unknown signal: " + signal)
         if not any(jobs):
@@ -206,11 +210,11 @@ class Pipeline(object):
                 _log("Compiling results...")
                 verbose_output.put("STOP")
                 print "--------------------"
-                for n in iter(verbose_output.get, 'STOP'):
+                for n in iter(verbose_output.get, sentinel):
                     print n
 
             res = []
-            for n in iter(queues[-1].get, 'STOP'):
+            for n in iter(queues[-1].get, sentinel):
                 res.append(n)
 
             return res
