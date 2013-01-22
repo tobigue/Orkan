@@ -53,12 +53,12 @@ callback function::
     def is_prime_bolt(n, callback):
         """From http://docs.python.org/dev/library/concurrent.futures.html"""
         if n % 2 == 0:
-            return n, False
+            callback((n, False))
         sqrt_n = int(math.floor(math.sqrt(n)))
         for i in range(3, sqrt_n + 1, 2):
             if n % i == 0:
-                return n, False
-        callback(n, True)
+                callback((n, False))
+        callback((n, True))
 
 For convenience of using "normal" functions, you can also specify bolts
 which do not expect a callback function. In this case, the return value
