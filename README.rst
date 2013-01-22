@@ -218,16 +218,16 @@ Endless stream of input data done right::
             n = int(random.random() * 1000000)
             callback(n)
 
-    pipeline = Pipeline([(s2, 1)], [(b1, 1), (b2, 1)])
+    pipeline = Pipeline([(s2, 1)], [(b1, 1), (v, 1)])
     results = pipeline.start(n_jobs=4)
 
     """
-        s2---b1----b2
+        s2---b1----v
     """
 
-Endless stream of input data done wrong (b2 workers will never start)::
+Endless stream of input data done wrong (v workers will never start)::
 
-    pipeline = Pipeline([(s, 2)], [(b1, 2), (b2, 2)])
+    pipeline = Pipeline([(s, 2)], [(b1, 2), (v, 2)])
     results = pipeline.start(n_jobs=4)
 
     """
@@ -244,7 +244,7 @@ Testing requires having the nose library (`pip install nose`).
 After installation, the package can be tested by executing from
 outside the source directory::
 
-    nosetests orkan --exe -v
+    nosetests --exe -v
 
 
 Known Issues
