@@ -23,7 +23,7 @@ modules in the pipeline can be parallelized, as well as multiple
 workers for each module.
 
 Taking its cue from the terminology of `Storm <https://github.com/nathanmarz/storm/wiki/Concepts>`_,
-Orkan adopts the concept of spouts and bolts, adding vents. In Orkan:
+Orkan adopts the concept of spouts and bolts. In Orkan:
 
 **Spouts** are the processes which feed elements into the Pipeline.
 They are defined as functions accepting a callback function, which
@@ -47,7 +47,22 @@ processing or just feeding the elements of an iterable into the pipeline::
 **Bolts** are the processes inside the pipeline which do the further
 processing. They are defined as functions which accept an element from
 the previous processing step and pass on a (possibly modified) element
-to the next module in the pipeline (or the list of results)::
+to the next module in the pipeline (or the list of results) with a
+callback function::
+
+    def is_prime_bolt(n, callback):
+        """From http://docs.python.org/dev/library/concurrent.futures.html"""
+        if n % 2 == 0:
+            return n, False
+        sqrt_n = int(math.floor(math.sqrt(n)))
+        for i in range(3, sqrt_n + 1, 2):
+            if n % i == 0:
+                return n, False
+        callback(n, True)
+
+For convenience of using "normal" functions, you can also specify bolts
+which do not expect a callback function. In this case, the return value
+of the function is passed to the next module in the pipeline::
 
     def is_prime_bolt(n):
         """From http://docs.python.org/dev/library/concurrent.futures.html"""
@@ -59,19 +74,7 @@ to the next module in the pipeline (or the list of results)::
                 return n, False
         return n, True
 
-**Vents** are an optional type of bolts, which won't pass on their
-result and thus are the last stage in a pipeline. This is useful,
-if you don't care about the actual return value of the pipeline
-computation, but rather want to send or save the result somewhere
-else. You should definitely use this in the case of an infinite
-stream of input data, as otherwise you probably will run out of
-memory at some point::
-
-    def send_result_vent(n):
-        number, is_prime = n
-        requests.post("http://127.0.0.1", data={number: is_prime})
-
-Note that spouts, bolts and vents will be started in seperate
+Note that spouts and bolts will be started in seperate
 python processes. That means, their in- and output elements have
 to be *pickable* and they should *not interact with non-threadsafe
 elements* in the main process. The passing of elements between the
@@ -90,7 +93,7 @@ and bolt defined above::
     result = pipeline.start()
 
 The pipeline is defined by passing a list of spouts and a list of
-bolts (and optionally a vent, see examples). Each element in a list
+bolts. Each element in a list
 is a tuple of the function to be executed and the number of workers
 to be spawned for this function. Note that if you run more than one
 worker for a function the order of result elements might not correspond
@@ -112,18 +115,20 @@ You can change this by passing a value for ``n_jobs`` to ``start()``::
     result = pipeline.start(n_jobs=1)
 
 Note that in case of an infinite input stream of data you will need
-at least one worker for every spout/bolt/vent, as no worker will ever
+at least one worker for every spout/bolt, as no worker will ever
 finish and thus won't free a slot for a new worker further down in the
-pipeline.
+pipeline. I also is a good idea to not pass on any information with
+the last bolt of an infinitely running pipeline, as otherwise you
+probably will run out of memory at some point.
 
-You should test your spouts/bolts/vents before using in the pipeline,
+You should test your spouts and bolts before using in the pipeline,
 as error messages are not always propagated back to the main process.
 
 
 Examples
 ========
 
-The examples will use the following simple spout/bolts/vent::
+The examples will use the following simple spout and bolts::
 
     def s(callback):
         """Simple spout that puts some random numbers into the Pipeline."""
@@ -132,15 +137,17 @@ The examples will use the following simple spout/bolts/vent::
             callback(n)
 
     def b1(n):
-        """Simple bolt that doubles the passed element."""
+        """Simple bolt that doubles the passed element (via return)."""
         return n * 2
 
-    def b2(n):
-        """Simple bolt that halves the passed element."""
-        return n / 2
+    def b2(n, callback):
+        """Simple bolt that halves the passed element (via callback)."""
+        callback(n / 2)
 
-    def v(n):
-        """Simple vent that prints the result."""
+    def v(n, callback):
+        """Simple bolt for an inifinte stream of incoming data, that
+        prints the result at the end of the Pipeline and does not pass
+        anything on."""
         print n
 
 
@@ -153,7 +160,7 @@ Non-parallel processing::
     results = pipeline.start(n_jobs=1)
 
     """
-        s1
+        s
         |
         b1
         |
@@ -211,22 +218,22 @@ Endless stream of input data done right::
             n = int(random.random() * 1000000)
             callback(n)
 
-    pipeline = Pipeline([(s2, 1)], [(b1, 1), (b2, 1)], vent=(v, 1))
+    pipeline = Pipeline([(s2, 1)], [(b1, 1), (b2, 1)])
     results = pipeline.start(n_jobs=4)
 
     """
-        s2---b1----b2----v
+        s2---b1----b2
     """
 
-Endless stream of input data done wrong (vent and one b2 worker will never start)::
+Endless stream of input data done wrong (b2 workers will never start)::
 
-    pipeline = Pipeline([(s, 1)], [(b1, 2), (b2, 2)], vent=(v, 1))
+    pipeline = Pipeline([(s, 2)], [(b1, 2), (b2, 2)])
     results = pipeline.start(n_jobs=4)
 
     """
-           .-b1-------.
-        s2-|          |--b2---
-           '-------b1-'
+        s-------.  .-b1-------.
+                |--|          |---#!
+              s-'  '-------b1-'
     """
 
 

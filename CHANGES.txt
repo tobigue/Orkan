@@ -1,0 +1,21 @@
+Orkan Changelog
+===============
+
+
+v0.1 - 2013-01-22
+-----------------
+
+* Initial implementation of the Pipeline class
+
+
+v0.1.1 - 2013-01-22
+-------------------
+
+* Changes name of queue sentinel
+
+
+v0.1.2 - 2013-01-22
+-------------------
+
+* Changes bolt API to accept callback function
+* Remove vents, as no longer needed

@@ -55,32 +55,24 @@ def _bolt(f, i, j):
     if VERBOSE:
         _log("BOLT %s.%s: START" % (i, j))
     signals.put(("START", i))
+
+    def add(n):
+        if VERBOSE:
+            _log("BOLT %s.%s: PASS %s" % (i, j, n))
+        queues[i + 1].put(n)
+
     for n in iter(queues[i].get, sentinel):
         if VERBOSE:
             _log("BOLT %s.%s: PROCESS %s" % (i, j, n))
-        r = f(n)
-        queues[i + 1].put(r)
+
+        try:
+            f(n, add)
+        except TypeError:
+            add(f(n))
+
     queues[i].put(sentinel)  # repeat Sentinel for sister processes
     if VERBOSE:
         _log("BOLT %s.%s: END" % (i, j))
-    signals.put(("STOP", i))
-
-
-def _vent(f, i, j):
-    """
-    Wrapper for a vent function. Takes elements from the i'th
-    queue and calls f(element).
-    """
-    if VERBOSE:
-        _log("VENT %s.%s: START" % (i, j))
-    signals.put(("START", i))
-    for n in iter(queues[i].get, sentinel):
-        if VERBOSE:
-            _log("VENT %s.%s: PROCESS %s" % (i, j, n))
-        f(n)
-    queues[i].put(sentinel)  # repeat Sentinel for sister processes
-    if VERBOSE:
-        _log("VENT %s.%s: END" % (i, j))
     signals.put(("STOP", i))
 
 
@@ -97,7 +89,7 @@ def _manager(jobs):
             pass
         elif signal == "STOP":
             jobs[i + 1] -= 1
-            if jobs[i + 1] == 0 and i + 1 < len(queues):
+            if jobs[i + 1] == 0:
                 if VERBOSE:
                     _log("MANAGER: END QUEUE %s" % (i + 1))
                 queues[i + 1].put(sentinel)
@@ -130,24 +122,13 @@ class Pipeline(object):
         further processing. They are defined as functions which accept
         an element from the previous processing step and pass on
         (return) an element to the next module in the pipeline.
-
-    vent : (function, int)-tuple, optional
-        Vents are an optional type of bolts, which won't pass on their
-        result and thus are the last stage in a pipeline. This is
-        useful, if you don't care about the actual return value of the
-        pipeline computation, but rather want to send or save the result
-        somewhere else.
     """
 
-    def __init__(self, spouts, bolts, vent=None):
+    def __init__(self, spouts, bolts):
 
         self.spouts = spouts
         self.bolts = bolts
-        self.vent = vent
-
         self.no_processes = [n for _, n in spouts + bolts]
-        if vent:
-            self.no_processes.append(vent[1])
 
         if any([n > cpu_count() for n in self.no_processes]):
             raise ValueError("Number of jobs for each element should not"
@@ -170,16 +151,14 @@ class Pipeline(object):
 
         Returns
         -------
-        results : list or None
+        results : list
             Returns a list of elements processed by the pipeline.
-            In case of using a vent no results are collected, so this
-            function will return None.
         """
         if verbose:
             global VERBOSE
             VERBOSE = True
 
-        _init_queues(len(self.bolts) + 1 + int(bool(self.vent)))
+        _init_queues(len(self.bolts) + 1)
         if not n_jobs:
             n_jobs = cpu_count()
 
@@ -189,32 +168,23 @@ class Pipeline(object):
             while not m.running():
                 pass
 
-            i = -1
             for s, n in self.spouts:
                 for j in range(n):
-                    executor.submit(_spout, s, i, j)
+                    executor.submit(_spout, s, -1, j)
 
-            for b, n in self.bolts:
-                i += 1
+            for i, (b, n) in enumerate(self.bolts):
                 for j in range(n):
                     executor.submit(_bolt, b, i, j)
 
-            if self.vent:
-                v, n = self.vent
-                i += 1
-                for j in range(n):
-                    executor.submit(_vent, v, i, j)
+        if VERBOSE:
+            _log("Compiling results...")
+            verbose_output.put(sentinel)
+            print "--------------------"
+            for n in iter(verbose_output.get, sentinel):
+                print n
 
-        if not self.vent:
-            if VERBOSE:
-                _log("Compiling results...")
-                verbose_output.put("STOP")
-                print "--------------------"
-                for n in iter(verbose_output.get, sentinel):
-                    print n
+        res = []
+        for n in iter(queues[-1].get, sentinel):
+            res.append(n)
 
-            res = []
-            for n in iter(queues[-1].get, sentinel):
-                res.append(n)
-
-            return res
+        return res
