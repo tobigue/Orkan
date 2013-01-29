@@ -8,8 +8,9 @@ verbose_output = SimpleQueue()
 
 
 def _log(msg):
-    verbose_output.put(msg)
-    print msg
+    if VERBOSE:
+        verbose_output.put(msg)
+        print msg
 
 signals = SimpleQueue()  # Queue of signals for the manager
 queues = []
@@ -31,18 +32,15 @@ def _spout(f, i, j):
     a callback function, which is used by the spout function to
     put items into the first queue.
     """
-    if VERBOSE:
-        _log("SPOUT %s.%s: START" % (i, j))
+    _log("SPOUT %s.%s: START" % (i, j))
     signals.put(("START", i))
 
     def add(n):
-        if VERBOSE:
-            _log("SPOUT %s.%s: SPAWN %s" % (i, j, n))
+        _log("SPOUT %s.%s: SPAWN %s" % (i, j, n))
         queues[0].put(n)
 
     f(add)
-    if VERBOSE:
-        _log("SPOUT %s.%s: END" % (i, j))
+    _log("SPOUT %s.%s: END" % (i, j))
     signals.put(("STOP", i))
 
 
@@ -52,27 +50,22 @@ def _bolt(f, i, j):
     queue, calls f(element) and puts the result on the i+1'th
     queue.
     """
-    if VERBOSE:
-        _log("BOLT %s.%s: START" % (i, j))
+    _log("BOLT %s.%s: START" % (i, j))
     signals.put(("START", i))
 
     def add(n):
-        if VERBOSE:
-            _log("BOLT %s.%s: PASS %s" % (i, j, n))
+        _log("BOLT %s.%s: PASS %s" % (i, j, n))
         queues[i + 1].put(n)
 
     for n in iter(queues[i].get, sentinel):
-        if VERBOSE:
-            _log("BOLT %s.%s: PROCESS %s" % (i, j, n))
-
+        _log("BOLT %s.%s: PROCESS %s" % (i, j, n))
         try:
             f(n, add)
         except TypeError:
             add(f(n))
 
     queues[i].put(sentinel)  # repeat Sentinel for sister processes
-    if VERBOSE:
-        _log("BOLT %s.%s: END" % (i, j))
+    _log("BOLT %s.%s: END" % (i, j))
     signals.put(("STOP", i))
 
 
@@ -80,25 +73,21 @@ def _manager(jobs):
     """
     Manages the queues.
     """
-    if VERBOSE:
-        _log("MANAGER: START")
+    _log("MANAGER: START")
     for signal, i in iter(signals.get, sentinel):
-        if VERBOSE:
-            _log("MANAGER: PROCESS %s %s" % (signal, i))
+        _log("MANAGER: PROCESS %s %s" % (signal, i))
         if signal == "START":
             pass
         elif signal == "STOP":
             jobs[i + 1] -= 1
             if jobs[i + 1] == 0:
-                if VERBOSE:
-                    _log("MANAGER: END QUEUE %s" % (i + 1))
+                _log("MANAGER: END QUEUE %s" % (i + 1))
                 queues[i + 1].put(sentinel)
         else:
             ValueError("Got unknown signal: " + signal)
         if not any(jobs):
             signals.put("STOP")
-    if VERBOSE:
-        _log("MANAGER: STOP")
+    _log("MANAGER: STOP")
 
 
 class Pipeline(object):

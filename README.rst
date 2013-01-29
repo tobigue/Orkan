@@ -50,6 +50,8 @@ the previous processing step and pass on a (possibly modified) element
 to the next module in the pipeline (or the list of results) with a
 callback function::
 
+    import math
+
     def is_prime_bolt(n, callback):
         """From http://docs.python.org/dev/library/concurrent.futures.html"""
         if n % 2 == 0:
@@ -63,6 +65,8 @@ callback function::
 For convenience of using "normal" functions, you can also specify bolts
 which do not expect a callback function. In this case, the return value
 of the function is passed to the next module in the pipeline::
+
+    import math
 
     def is_prime_bolt(n):
         """From http://docs.python.org/dev/library/concurrent.futures.html"""
@@ -231,9 +235,9 @@ Endless stream of input data done wrong (v workers will never start)::
     results = pipeline.start(n_jobs=4)
 
     """
-        s-------.  .-b1-------.
+        s2------.  .-b1-------.
                 |--|          |---#!
-              s-'  '-------b1-'
+             s2-'  '-------b1-'
     """
 
 
