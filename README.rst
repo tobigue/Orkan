@@ -94,7 +94,7 @@ and bolt defined above::
     from orkan import Pipeline
 
     pipeline = Pipeline([(put_primes_spout, 1)], [(is_prime_bolt, 2)])
-    result = pipeline.start()
+    result = list(pipeline.start())
 
 The pipeline is defined by passing a list of spouts and a list of
 bolts. Each element in a list
@@ -116,7 +116,7 @@ You can change this by passing a value for ``n_jobs`` to ``start()``::
 
     # this example corresponds to non-parallel processing
     pipeline = Pipeline([(put_primes_spout, 1)], [(is_prime_bolt, 1)])
-    result = pipeline.start(n_jobs=1)
+    result = list(pipeline.start(n_jobs=1))
 
 Note that in case of an infinite input stream of data you will need
 at least one worker for every spout/bolt, as no worker will ever
@@ -161,7 +161,7 @@ Finite input
 Non-parallel processing::
 
     pipeline = Pipeline([(s, 1)], [(b1, 1), (b2, 1)])
-    results = pipeline.start(n_jobs=1)
+    results = list(pipeline.start(n_jobs=1))
 
     """
         s
@@ -176,7 +176,7 @@ Non-parallel processing::
 Parallel processing of pipeline modules::
 
     pipeline = Pipeline([(s, 1)], [(b1, 1), (b2, 1)])
-    results = pipeline.start(n_jobs=4)
+    results = list(pipeline.start(n_jobs=4))
 
         s----b1----b2
                    |
@@ -185,7 +185,7 @@ Parallel processing of pipeline modules::
 Parallel workers for the b1 bolt::
 
     pipeline = Pipeline([(s, 1)], [(b1, 2), (b2, 1)])
-    results = pipeline.start(n_jobs=4)
+    results = list(pipeline.start(n_jobs=4))
 
     """
            .-b1-------.
@@ -197,7 +197,7 @@ Parallel workers for the b1 bolt::
 More workers than processes (b2 workers will wait for spouts to finish)::
 
     pipeline = Pipeline([(s, 2)], [(b1, 2), (b2, 2)])
-    results = pipeline.start(n_jobs=4)
+    results = list(pipeline.start(n_jobs=4))
 
     """
         s-------.  .-b1-------.
@@ -223,7 +223,7 @@ Endless stream of input data done right::
             callback(n)
 
     pipeline = Pipeline([(s2, 1)], [(b1, 1), (v, 1)])
-    results = pipeline.start(n_jobs=4)
+    results = list(pipeline.start(n_jobs=4))
 
     """
         s2---b1----v
@@ -232,7 +232,7 @@ Endless stream of input data done right::
 Endless stream of input data done wrong (v workers will never start)::
 
     pipeline = Pipeline([(s, 2)], [(b1, 2), (v, 2)])
-    results = pipeline.start(n_jobs=4)
+    results = list(pipeline.start(n_jobs=4))
 
     """
         s2------.  .-b1-------.

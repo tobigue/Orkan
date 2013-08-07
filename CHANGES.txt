@@ -19,3 +19,11 @@ v0.1.2 - 2013-01-22
 
 * Changes bolt API to accept callback function
 * Remove vents, as no longer needed
+
+
+v0.2.0 - 2013-08-07
+-------------------
+
+* Pipeline.start() now returns a generator instead of a list,
+  allowing the collection/handling of each result as soon as
+  it arrives.

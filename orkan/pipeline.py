@@ -165,15 +165,13 @@ class Pipeline(object):
                 for j in range(n):
                     executor.submit(_bolt, b, i, j)
 
+            for n in iter(queues[-1].get, sentinel):
+                _log("YIELD %s" % n)
+                yield n
+
         if VERBOSE:
             _log("Compiling results...")
             verbose_output.put(sentinel)
             print "--------------------"
             for n in iter(verbose_output.get, sentinel):
                 print n
-
-        res = []
-        for n in iter(queues[-1].get, sentinel):
-            res.append(n)
-
-        return res

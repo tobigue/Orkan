@@ -36,31 +36,31 @@ class PipelineTests(unittest.TestCase):
     def test_non_parallel_pipeline(self):
         for _ in range(TEST_RUNS):
             pipeline = Pipeline([(s, 1)], [(b1, 1), (b2, 1)])
-            results = pipeline.start(n_jobs=1)
+            results = list(pipeline.start(n_jobs=1))
             self.assertEqual(len(results), 10)
 
     def test_parallel_pipeline(self):
         for _ in range(TEST_RUNS):
             pipeline = Pipeline([(s, 1)], [(b1, 1), (b2, 1)])
-            results = pipeline.start(n_jobs=3)
+            results = list(pipeline.start(n_jobs=3))
             self.assertEqual(len(results), 10)
 
     def test_parallel_workers(self):
         for _ in range(TEST_RUNS):
             pipeline = Pipeline([(s, 1)], [(b1, 2), (b2, 1)])
-            results = pipeline.start(n_jobs=4)
+            results = list(pipeline.start(n_jobs=4))
             self.assertEqual(len(results), 10)
 
     def test_more_workers_than_processes(self):
         for _ in range(TEST_RUNS):
             pipeline = Pipeline([(s, 2)], [(b1, 2), (b2, 2)])
-            results = pipeline.start(n_jobs=4)
+            results = list(pipeline.start(n_jobs=4))
             self.assertEqual(len(results), 20)
 
     def test_no_result(self):
         for _ in range(TEST_RUNS):
             pipeline = Pipeline([(s, 1)], [(b1, 1), (v, 1)])
-            results = pipeline.start(n_jobs=4)
+            results = list(pipeline.start(n_jobs=4))
             self.assertEqual(results, [])
 
 
