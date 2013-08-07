@@ -1,6 +1,7 @@
 from multiprocessing import cpu_count
 from multiprocessing.queues import SimpleQueue
 from concurrent.futures import ProcessPoolExecutor
+import traceback
 
 
 VERBOSE = False
@@ -39,7 +40,10 @@ def _spout(f, i, j):
         _log("SPOUT %s.%s: SPAWN %s" % (i, j, n))
         queues[0].put(n)
 
-    f(add)
+    try:
+        f(add)
+    except:
+        _log(traceback.format_exc())
     _log("SPOUT %s.%s: END" % (i, j))
     signals.put(("STOP", i))
 
@@ -60,9 +64,12 @@ def _bolt(f, i, j):
     for n in iter(queues[i].get, sentinel):
         _log("BOLT %s.%s: PROCESS %s" % (i, j, n))
         try:
-            f(n, add)
-        except TypeError:
-            add(f(n))
+            try:
+                f(n, add)
+            except TypeError:
+                add(f(n))
+        except:
+            _log(traceback.format_exc())
 
     queues[i].put(sentinel)  # repeat Sentinel for sister processes
     _log("BOLT %s.%s: END" % (i, j))
