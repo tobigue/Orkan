@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='Orkan',
-    version='0.2.0',
+    version='0.2.1',
     author='Tobias Guenther',
     author_email='orkan@tobias.io',
     packages=['orkan', 'orkan.test'],

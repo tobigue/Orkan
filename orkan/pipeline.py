@@ -166,7 +166,8 @@ class Pipeline(object):
                     executor.submit(_bolt, b, i, j)
 
             for n in iter(queues[-1].get, sentinel):
-                _log("YIELD %s" % n)
+                if VERBOSE:
+                    _log("YIELD %s" % str(n))
                 yield n
 
         if VERBOSE:
